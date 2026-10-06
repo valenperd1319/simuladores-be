@@ -319,8 +319,26 @@ textarea::placeholder { color: var(--fg-3); }
 :root[data-theme="dark"] .reset-btn:hover { color: var(--p-accent-dark); }
 </style>
 
+<!-- Modal key -->
+<div id="key-modal" style="position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border-radius:12px;padding:28px 24px;max-width:420px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+    <div style="font-family:'Instrument Serif',serif;font-size:18px;margin-bottom:6px">Configurar Groq API Key</div>
+    <p style="font-size:13px;color:var(--fg-2);margin-bottom:16px;line-height:1.5">La key se guarda solo en <strong>tu navegador</strong> — nunca en el código. Conseguila gratis en <a href="https://console.groq.com/keys" target="_blank" style="color:var(--p-accent)">console.groq.com/keys</a></p>
+    <input id="key-input" type="password" placeholder="gsk_..." style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--fg);font-family:monospace;margin-bottom:8px">
+    <div id="key-error" style="font-size:12px;color:#C0392B;margin-bottom:10px;min-height:16px"></div>
+    <div style="display:flex;gap:8px">
+      <button onclick="saveKey()" style="flex:1;padding:10px;background:var(--p-accent);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Guardar</button>
+      <button onclick="document.getElementById('key-modal').setAttribute('hidden','')" style="padding:10px 16px;background:var(--surface-alt);color:var(--fg-2);border:none;border-radius:8px;font-size:13px;cursor:pointer">Cancelar</button>
+    </div>
+    <button onclick="clearKey()" style="margin-top:12px;background:none;border:none;font-size:12px;color:var(--fg-3);cursor:pointer;text-decoration:underline">Borrar key guardada</button>
+  </div>
+</div>
+
 <div class="topbar">
-  <div class="topbar-title">Simuladores de entrevista · BE Dermatología</div>
+  <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:8px">
+    <div class="topbar-title" style="padding-bottom:0">Simuladores de entrevista · BE Dermatología</div>
+    <button id="config-key-btn" onclick="showKeyModal()" style="background:none;border:none;font-size:12px;cursor:pointer;font-family:inherit;color:var(--fg-2)">🔑 Key activa</button>
+  </div>
   <div class="tabs" id="tabBar"></div>
 </div>
 
@@ -1145,8 +1163,49 @@ let activeIdx = 0;
 let busy = false;
 
 // ── GROQ ──────────────────────────────────────────────────────────────────────
-const GROQ_KEY = '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';
 const GROQ_MODEL = 'llama-3.3-70b-versatile';
+let GROQ_KEY = localStorage.getItem('groq_key') || '';
+
+function getOrAskGroqKey() {
+  const saved = localStorage.getItem('groq_key');
+  if (saved) { GROQ_KEY = saved; return true; }
+  return false;
+}
+
+function showKeyModal() {
+  document.getElementById('key-modal').removeAttribute('hidden');
+}
+
+function saveKey() {
+  const val = document.getElementById('key-input').value.trim();
+  if (!val.startsWith('gsk_')) {
+    document.getElementById('key-error').textContent = 'La key debe empezar con gsk_';
+    return;
+  }
+  GROQ_KEY = val;
+  localStorage.setItem('groq_key', val);
+  document.getElementById('key-modal').setAttribute('hidden', '');
+  document.getElementById('key-error').textContent = '';
+  updateKeyBtn();
+}
+
+function clearKey() {
+  GROQ_KEY = '';
+  localStorage.removeItem('groq_key');
+  updateKeyBtn();
+  showKeyModal();
+}
+
+function updateKeyBtn() {
+  const btn = document.getElementById('config-key-btn');
+  if (GROQ_KEY) {
+    btn.textContent = '🔑 Key activa';
+    btn.style.color = 'var(--fg-2)';
+  } else {
+    btn.textContent = '⚠️ Configurar key';
+    btn.style.color = '#C0392B';
+  }
+}
 
 async function callGroq(systemPrompt, history, userMsg) {
   const messages = [
@@ -1326,6 +1385,11 @@ async function sendQuestion(i) {
   const statusEl = document.getElementById('status-' + p.id);
   const q = ta.value.trim();
   if (!q) return;
+
+  if (!GROQ_KEY) {
+    showKeyModal();
+    return;
+  }
 
   busy = true;
   ta.value = '';
@@ -1550,4 +1614,11 @@ loadAll();
 buildTabs();
 buildPanels();
 setPersonaTokens(PERSONAS[0]);
+// Key setup
+if (!GROQ_KEY) {
+  showKeyModal();
+} else {
+  document.getElementById('key-modal').setAttribute('hidden', '');
+}
+updateKeyBtn();
 </script>
